@@ -27,7 +27,7 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = '''
 ---
-module: grafana_teams
+module: grafana_team
 author:
   - Manuel Bovo (@mbovo)
 version_added: 2.9
@@ -42,34 +42,26 @@ EXAMPLES = '''
 - hosts: localhost
   connection: local
   tasks:
-    - name: Import Grafana dashboard foo
-      grafana_dashboard:
-        grafana_url: http://grafana.company.com
-        grafana_api_key: "{{ grafana_api_key }}"
+    - name: Create Team
+      grafana_team:
         state: present
-        message: Updated by ansible
-        overwrite: yes
-        path: /path/to/dashboards/foo.json
-    - name: Export dashboard
-      grafana_dashboard:
-        grafana_url: http://grafana.company.com
+        grafana_url: "https://grafana.com"
         grafana_user: "admin"
-        grafana_password: "{{ grafana_password }}"
-        org_id: 1
-        state: export
-        uid: "000000653"
-        path: "/path/to/dashboards/000000653.json"
+        grafana_password: "admin"
+        validate_certs: false
+        name: "teamName"
+        email: "team@email.com"
 '''
 
 RETURN = '''
-original_message:
-    description: The original name param that was passed in
+members:
+    description: The list of tuples (id, login, email)
+    type: list
+    returned: onSuccess
+teamId:
+    description: the team ID
     type: str
-    returned: always
-message:
-    description: The output message that the test module generates
-    type: str
-    returned: always
+    returned: onSuccess
 '''
 
 __metaclass__ = type
