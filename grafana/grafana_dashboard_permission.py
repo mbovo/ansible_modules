@@ -114,21 +114,21 @@ def grafana_search_permission(perms, ptype, target_name) -> bool:
   return False
 
 
-def grafana_team_id_by_name(graf: GrafanaFace, name: str) -> str:
+def grafana_team_id_by_name(graf: GrafanaFace, name: str) -> int:
   team = graf.teams.get_team_by_name(name)
-  return team[0]['id']
+  return int(team[0]['id'])
 
 
-def grafana_user_id_by_name(graf: GrafanaFace, name: str) -> str:
+def grafana_user_id_by_name(graf: GrafanaFace, name: str) -> int:
   user = graf.users.find_user(name)
-  return user[0]['id']
+  return int(user[0]['id'])
 
 
 def grafana_add_permission(graf: GrafanaFace, module: AnsibleModule, data):
   perms, did, _ = grafana_get_permission(graf, data['dashboard'])
   found = grafana_search_permission(perms, data['type'], data['target_name'])
 
-  mapPermNameToID = {'view': '1', 'edit': '2', 'admin': '4'}
+  mapPermNameToID = {'view': 1, 'edit': 2, 'admin': 4}
 
   newPerms = {"items": []}
   for perm in perms:
@@ -150,7 +150,10 @@ def grafana_add_permission(graf: GrafanaFace, module: AnsibleModule, data):
 
     newPerms['items'].append(newPerm)
 
-    return graf.dashboard.update_dashboard_permissions(did, newPerms)
+    try:
+      return graf.dashboard.update_dashboard_permissions(did, newPerms)
+    except Exception as e:
+      raise Exception("%s %s" % (e, newPerms))
 
   return {'changed': False}
 
