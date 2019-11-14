@@ -133,10 +133,12 @@ def grafana_add_permission(graf: GrafanaFace, module: AnsibleModule, data):
   newPerms = {"items": []}
   for perm in perms:
     for i in ['dashboardId', 'created', 'updated', 'userAvatarUrl', 'teamAvatarUrl', 'permissionName', 'uid', 'title', 'slug', 'isFolder', 'url', 'inherited']:
-      del(perm[i])
-    for i in ['userId', 'userLogin', 'userEmail', 'teamId', 'teamEmail', 'team', 'role']:
-      if perm[i] == '' or perm[i] == "0" or perm[i] == 0:
+      if i in perm:
         del(perm[i])
+    for i in ['userId', 'userLogin', 'userEmail', 'teamId', 'teamEmail', 'team', 'role']:
+      if i in perm:
+        if perm[i] == '' or perm[i] == "0" or perm[i] == 0:
+          del(perm[i])
     newPerms['items'].append(perm)
 
   if not found:
