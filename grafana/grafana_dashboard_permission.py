@@ -66,12 +66,8 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
-members:
-    description: The list of tuples (id, login, email)
-    type: list
-    returned: onSuccess
-teamId:
-    description: the team ID
+message:
+    description: Returned message
     type: str
     returned: onSuccess
 '''
