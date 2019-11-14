@@ -65,6 +65,71 @@ teamId:
 
 __metaclass__ = type
 
+def grafana_dashboard_id_from_name(graf: GrafanaFace, name):
+  ret = graf.search.search_dashboards(name)
+  if len(ret) == 0:
+    raise Exception("No dashboard found named %s" % name)
+  if len(ret) > 1 :
+    raise Exception("Multiple dashboard found with name %s" % name)
+  if ret[0]['type'] != 'dash-db':
+    raise Exception("No dashboard found named %s" % name)
+  d_id = ret[0]['id']
+  d_uid = ret[0]['uid']
+
+  return (d_id,d_uid)
+
+def grafana_get_permission(graf: GrafanaFace, name):
+  did, duid = grafana_dashboard_id_from_name(graf, name)
+  perms = graf.dashboard.get_dashboard_permissions(did)
+  return perms, did, duid
+
+def grafana_search_permission(perms, ptype, target_name) -> bool:
+  for perm in perms:
+    if ptype == 'team':
+      if perm['team'] == target_name:
+        return True
+    elif ptype == 'user':
+      if perm['userLogin'] == target_name or perm['userEmail'] == target_name:
+        return True
+    elif ptype == 'role':
+      if 'role' in perm and  str(perm['role']).lower() == str(target_name).lower():
+        return True
+    
+  return False
+
+
+def grafana_team_id_by_name(graf: GrafanaFace, name:str) -> str:
+  team = graf.teams.get_team_by_name(name)
+  return team[0]['id']
+
+
+def grafana_user_id_by_name(graf: GrafanaFace, name:str) -> str:
+  user = graf.users.find_user(name)
+  return user[0]['id']
+
+def grafana_add_permission(graf: GrafanaFace, module: AnsibleModule, data):
+  perms, did, _ = grafana_get_permission(graf, data['dashboard'])
+  found = grafana_search_permission(perms, data['type'], data['target_name'])
+  
+  mapPermNameToID = {'view': '1', 'edit': '2', 'admin': '4'}
+
+  if not found:
+    newPerm = {'permission': mapPermNameToID[data['role']]}
+    if data['type'] == 'team':
+      newPerm['teamId'] = grafana_team_id_by_name(graf, data['target_name'])
+    elif data['type'] == 'user':
+      newPerm['userId'] = grafana_user_id_by_name(graf, data['target_name'])
+    elif data['type'] == 'role':
+      newPerm['role'] = str(data['target_name']).capitalize()
+    
+    perms.append(newPerm)
+
+    return graf.dashboard.update_dashboard_permissions(did, perms)
+
+  return {'changed':False}
+
+def grafana_delete_permission(graf: GrafanaFace, module: AnsibleModule, data):
+  pass
 
 def main():
   argument_spec = basic_auth_argument_spec()
@@ -72,13 +137,13 @@ def main():
       state=dict(choices=['present', 'absent'], default='present'),
       api_url=dict(aliases=['url', 'grafana_url'], type='str', required=True),
       api_username=dict(aliases=['grafana_user'], type='str', default='admin'),
-      api_password=dict(aliases=['grafana_password'],
-                        type='str', default='admin', no_log=True),
+      api_password=dict(aliases=['grafana_password'],type='str', default='admin', no_log=True),
       grafana_api_key=dict(aliases=['api_key'], type='str', no_log=True),
-      # validate_certs inherited from basib_auth_argument_spec
-      name=dict(type='str', required=True, aliases=['team_name']),
-      email=dict(type='str', required=True, aliases=['team_email', 'mailbox']),
-      members=dict(type='list', defalt=[])
+      # validate_certs inherited from basic_auth_argument_spec
+      dashboard=dict(type='str', required=True, aliases=['dashboard_name']),
+      type=dict(choices=['role','team','user'], default='role'),
+      target_name=dict(type='str', default='Viewer', aliases=['target']),
+      role=dict(choices=['view','edit','admin'], default='view')
   )
 
   module = AnsibleModule(
@@ -110,10 +175,11 @@ def main():
                        verify=module.params['validate_certs']
                        )
 
+
     if module.params['state'] == 'present':
-      result = {}
+      result = grafana_add_permission(graf, module, module.params)
     else:
-      result = {}
+      result = grafana_delete_permission(graf, module, module.param)
   except Exception as e:
     module.fail_json(
         failed=True,
